@@ -119,8 +119,7 @@ export default function TakeAttendancePage() {
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="text-3xl font-bold tracking-tight text-stone-900">Take Attendance</h2>
-        <p className="text-stone-600">Select session, mark each student as present or absent, and save.</p>
+        <h2 className="text-3xl font-bold tracking-tight text-stone-900">Take Student Attendance</h2>
       </section>
 
       <Card className="border-stone-200 bg-white/95">

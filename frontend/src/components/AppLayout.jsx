@@ -59,6 +59,7 @@ export default function AppLayout({ children }) {
       { to: "/subjects", label: "Subjects", icon: BookOpen },
       { to: "/students", label: "Students", icon: GraduationCap },
       { to: "/students/add", label: "Add Student", icon: UserPlus2 },
+      { to: "/attendance/take", label: "Take Student Attendance", icon: CheckCheck },
       { to: "/attendance", label: "Attendance", icon: CalendarCheck2 },
       { to: "/attendance/scanner", label: "QR Scanner", icon: CheckCheck },
       { to: "/sessions", label: "Sessions", icon: ClipboardList },

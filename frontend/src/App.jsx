@@ -48,6 +48,7 @@ export default function App() {
       <Route path="/students/add" element={withLayout(<AddStudentPage />, ["admin", "teacher"])} />
       <Route path="/subjects" element={withLayout(<SubjectsPage />, ["admin", "teacher"])} />
       <Route path="/attendance" element={withLayout(<AttendancePage />, ["admin", "teacher"])} />
+      <Route path="/attendance/take" element={withLayout(<TakeAttendancePage />, ["admin", "teacher"])} />
       <Route path="/attendance-progress" element={withLayout(<AttendanceProgressPage />, ["admin", "teacher"])} />
       <Route path="/attendance/scanner" element={withLayout(<AttendanceScannerPage />, ["teacher"])} />
       <Route path="/attendance/staff-qr" element={withLayout(<StaffQrGeneratorPage />, ["admin"])} />
