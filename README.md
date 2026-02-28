@@ -1,0 +1,138 @@
+# Student Attendance System
+
+Full-stack attendance system with:
+- `backend`: Node.js + Express + Drizzle ORM + PostgreSQL
+- `frontend`: React (Vite) + Tailwind + shadcn/ui
+
+## Project Structure
+
+```text
+student-attendance/
+  backend/
+  frontend/
+```
+
+## Prerequisites
+
+- Node.js 20+ (recommended: latest LTS)
+- npm or pnpm
+- PostgreSQL database (Neon/local/etc.)
+
+## 1. Clone Project
+
+```bash
+git clone <your-repo-url>
+cd student-attendance
+```
+
+## 2. Backend Setup
+
+```bash
+cd backend
+npm install
+```
+
+Create `backend/.env`:
+
+```env
+PORT=5000
+DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=verify-full
+JWT_SECRET=replace_with_strong_secret
+
+# Optional Google login
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+
+# Auto mark absent cutoff (HH:MM, 24-hour, local server time)
+STAFF_ABSENT_CUTOFF=10:00
+```
+
+Generate and run migrations:
+
+```bash
+npm run generate
+npm run migrate
+```
+
+Run backend:
+
+```bash
+npm run dev
+```
+
+Backend runs on: `http://localhost:5000`
+
+Tip:
+```bash
+cp .env.example .env
+```
+
+## 3. Frontend Setup
+
+Open a new terminal:
+
+```bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env`:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+Run frontend:
+
+```bash
+npm run dev
+```
+
+Frontend runs on: `http://localhost:5173`
+
+Tip:
+```bash
+cp .env.example .env
+```
+
+## 4. First Run Checklist
+
+1. Start backend first.
+2. Start frontend.
+3. Register/login users.
+4. Ensure DB migrations are applied.
+
+## 5. Attendance Flow (Current)
+
+- Admin:
+  - Generates staff QR from `Staff QR` page.
+- Teacher:
+  - Scans QR in `QR Scanner`.
+  - Attendance is stored via `POST /staff-attendance`.
+- Auto absent:
+  - After cutoff time (`STAFF_ABSENT_CUTOFF`, default `10:00`), active teachers without scan are auto-marked `absent`.
+
+## 6. Common Issues
+
+- `Route not found: POST /staff-attendance`
+  - Backend not restarted after code update, or route not deployed.
+
+- `ERR_CONNECTION_REFUSED`
+  - Backend not running or wrong `VITE_API_URL`.
+
+- Migration/table errors
+  - Run:
+    - `npm run generate`
+    - `npm run migrate`
+
+- QR camera not opening
+  - Allow browser camera permission.
+  - Use `http://localhost` (not file preview).
+
+## 7. Production Notes
+
+- Never commit real `.env` secrets.
+- Use platform env vars (Render/Railway/Vercel/Netlify).
+- Set backend CORS to your frontend domain.
