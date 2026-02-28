@@ -49,6 +49,37 @@ FRONTEND_URL=http://localhost:5173
 STAFF_ABSENT_CUTOFF=10:00
 ```
 
+### Generate JWT Secret
+
+Run in terminal:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Copy output and set:
+
+```env
+JWT_SECRET=<paste_generated_value>
+```
+
+### Google OAuth Setup (Optional)
+
+1. Open Google Cloud Console.
+2. Create/select a project.
+3. Go to `APIs & Services` -> `Credentials`.
+4. Create `OAuth Client ID` (Web application).
+5. Add Authorized Redirect URI:
+   - `http://localhost:5000/auth/google/callback`
+6. Copy generated values into `backend/.env`:
+
+```env
+GOOGLE_CLIENT_ID=<google_client_id>
+GOOGLE_CLIENT_SECRET=<google_client_secret>
+GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+```
+
 Generate and run migrations:
 
 ```bash
