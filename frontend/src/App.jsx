@@ -33,32 +33,48 @@ function withLayout(element, allowedRoles) {
   );
 }
 
+const publicRoutes = [
+  { path: "/login", element: <Login /> },
+  { path: "/signup", element: <Signup /> },
+  { path: "/auth/callback", element: <AuthCallback /> },
+];
+
+const protectedRoutes = [
+  { path: "/dashboard", element: <Dashboard /> },
+  { path: "/profile", element: <Profile /> },
+  { path: "/users", element: <UsersPage />, allowedRoles: ["admin"] },
+  { path: "/teachers/add", element: <AddTeacherPage />, allowedRoles: ["admin"] },
+  { path: "/classes", element: <ClassesPage />, allowedRoles: ["admin"] },
+  { path: "/students", element: <StudentsPage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/students/add", element: <AddStudentPage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/subjects", element: <SubjectsPage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/attendance", element: <AttendancePage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/attendance/take", element: <TakeAttendancePage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/attendance-progress", element: <AttendanceProgressPage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/attendance/scanner", element: <AttendanceScannerPage />, allowedRoles: ["teacher"] },
+  { path: "/attendance/staff-qr", element: <StaffQrGeneratorPage />, allowedRoles: ["admin"] },
+  { path: "/my-attendance", element: <StudentAttendancePage />, allowedRoles: ["student"] },
+  { path: "/student/sessions", element: <StudentSessionsPage />, allowedRoles: ["student"] },
+  { path: "/student/subject-progress", element: <StudentSubjectProgressPage />, allowedRoles: ["student"] },
+  { path: "/student/attendance-records", element: <StudentAttendanceRecordsPage />, allowedRoles: ["student"] },
+  { path: "/student/attendance-percentage", element: <StudentAttendancePercentagePage />, allowedRoles: ["student"] },
+  { path: "/sessions", element: <SessionsPage />, allowedRoles: ["admin", "teacher"] },
+  { path: "/reports", element: <ReportsPage />, allowedRoles: ["admin"] },
+];
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/dashboard" element={withLayout(<Dashboard />)} />
-      <Route path="/profile" element={withLayout(<Profile />)} />
-      <Route path="/users" element={withLayout(<UsersPage />, ["admin"])} />
-      <Route path="/teachers/add" element={withLayout(<AddTeacherPage />, ["admin"])} />
-      <Route path="/classes" element={withLayout(<ClassesPage />, ["admin"])} />
-      <Route path="/students" element={withLayout(<StudentsPage />, ["admin", "teacher"])} />
-      <Route path="/students/add" element={withLayout(<AddStudentPage />, ["admin", "teacher"])} />
-      <Route path="/subjects" element={withLayout(<SubjectsPage />, ["admin", "teacher"])} />
-      <Route path="/attendance" element={withLayout(<AttendancePage />, ["admin", "teacher"])} />
-      <Route path="/attendance/take" element={withLayout(<TakeAttendancePage />, ["admin", "teacher"])} />
-      <Route path="/attendance-progress" element={withLayout(<AttendanceProgressPage />, ["admin", "teacher"])} />
-      <Route path="/attendance/scanner" element={withLayout(<AttendanceScannerPage />, ["teacher"])} />
-      <Route path="/attendance/staff-qr" element={withLayout(<StaffQrGeneratorPage />, ["admin"])} />
-      <Route path="/my-attendance" element={withLayout(<StudentAttendancePage />, ["student"])} />
-      <Route path="/student/sessions" element={withLayout(<StudentSessionsPage />, ["student"])} />
-      <Route path="/student/subject-progress" element={withLayout(<StudentSubjectProgressPage />, ["student"])} />
-      <Route path="/student/attendance-records" element={withLayout(<StudentAttendanceRecordsPage />, ["student"])} />
-      <Route path="/student/attendance-percentage" element={withLayout(<StudentAttendancePercentagePage />, ["student"])} />
-      <Route path="/sessions" element={withLayout(<SessionsPage />, ["admin", "teacher"])} />
-      <Route path="/reports" element={withLayout(<ReportsPage />, ["admin"])} />
+      {publicRoutes.map((route) => (
+        <Route key={route.path} path={route.path} element={route.element} />
+      ))}
+      {protectedRoutes.map((route) => (
+        <Route
+          key={route.path}
+          path={route.path}
+          element={withLayout(route.element, route.allowedRoles)}
+        />
+      ))}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
