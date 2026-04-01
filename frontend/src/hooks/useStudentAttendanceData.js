@@ -12,6 +12,17 @@ export default function useStudentAttendanceData(userId) {
   const [subjectProgress, setSubjectProgress] = useState([]);
   const [sessionsForClass, setSessionsForClass] = useState([]);
   const [subjectsForClass, setSubjectsForClass] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const handleRefresh = () => setRefreshKey((prev) => prev + 1);
+    window.addEventListener("attendance-session-created", handleRefresh);
+    window.addEventListener("attendance-updated", handleRefresh);
+    return () => {
+      window.removeEventListener("attendance-session-created", handleRefresh);
+      window.removeEventListener("attendance-updated", handleRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -114,11 +125,17 @@ export default function useStudentAttendanceData(userId) {
     } else {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   const attendanceSummary = useMemo(() => {
-    const total = attendance.length;
-    const present = attendance.filter((item) => item.status === "present").length;
+    const uniqueByDate = attendance.reduce((acc, row) => {
+      const key = `${row.sessionId || "session"}|${row.attendanceDate || "date"}`;
+      if (!acc[key]) acc[key] = row.status;
+      return acc;
+    }, {});
+
+    const total = Object.keys(uniqueByDate).length;
+    const present = Object.values(uniqueByDate).filter((status) => status === "present").length;
     const absent = total - present;
     const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return { total, present, absent, percentage };

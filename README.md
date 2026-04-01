@@ -65,6 +65,9 @@ JWT_SECRET=<paste_generated_value>
 
 ### Google OAuth Setup (Optional)
 
+The backend callback route is `GET /auth/google/callback`, so the redirect URI **must** match:
+`http://localhost:5000/auth/google/callback` (for local dev).
+
 1. Open Google Cloud Console.
 2. Create/select a project.
 3. Go to `APIs & Services` -> `Credentials`.
@@ -79,6 +82,10 @@ GOOGLE_CLIENT_SECRET=<google_client_secret>
 GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
 FRONTEND_URL=http://localhost:5173
 ```
+
+Production note: replace the redirect URI with your public backend URL, e.g.
+`https://api.yourdomain.com/auth/google/callback`, and update it in Google Cloud
+Console and `backend/.env`.
 
 Generate and run migrations:
 

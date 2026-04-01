@@ -33,6 +33,18 @@ const updateUserSchema = z.object({
   age: z.number().int().min(1).max(120).optional(),
 });
 
+const updateSelfSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(6).optional(),
+  phoneNumber: z.string().min(7).max(20).optional(),
+  address: z.string().max(255).optional(),
+  parentName: z.string().max(150).optional(),
+  education: z.string().max(150).optional(),
+  dob: z.string().optional(),
+  age: z.number().int().min(1).max(120).optional(),
+});
+
 export async function createUser(req: Request, res: Response) {
   try {
     const parsed = createUserSchema.safeParse(req.body);
@@ -167,6 +179,38 @@ export async function updateUser(req: Request, res: Response) {
     return res.json({ message: "User updated successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error", error });
+  }
+}
+
+export async function updateMe(req: AuthenticatedRequest, res: Response) {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const parsed = updateSelfSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const updateData: any = { ...parsed.data };
+
+    if (updateData.email) {
+      const existingUser = await db
+        .select({ userId: users.userId })
+        .from(users)
+        .where(eq(users.email, updateData.email))
+        .limit(1);
+      if (existingUser.length > 0 && existingUser[0].userId !== userId) {
+        return res.status(409).json({ message: "Email already exists" });
+      }
+    }
+
+    if (updateData.password) updateData.password = await hashPassword(updateData.password);
+
+    const result = await db.update(users).set(updateData).where(eq(users.userId, userId));
+    if (result.rowCount === 0) return res.status(404).json({ message: "User not found" });
+
+    return res.json({ message: "Profile updated successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
   }
 }
 

@@ -3,8 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api";
+import { getUser } from "@/lib/auth";
 
 export default function TakeAttendancePage() {
+  const user = getUser();
+  const isTeacher = user?.role === "teacher";
+  const isAdmin = user?.role === "admin";
   const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
   const [usersById, setUsersById] = useState({});
@@ -13,6 +17,10 @@ export default function TakeAttendancePage() {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [attendanceDate, setAttendanceDate] = useState("");
   const [statuses, setStatuses] = useState({});
+  const [createForm, setCreateForm] = useState({ classId: "", subjectId: "", sessionDate: "" });
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [createSuccess, setCreateSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -52,9 +60,35 @@ export default function TakeAttendancePage() {
     fetchData();
   }, []);
 
+  const allSubjects = useMemo(() => Object.values(subjectsById), [subjectsById]);
+  const availableSubjects = useMemo(() => {
+    if (isTeacher && user?.userId) {
+      return allSubjects.filter((subject) => Number(subject.teacherId) === Number(user.userId));
+    }
+    return allSubjects;
+  }, [allSubjects, isTeacher, user?.userId]);
+
+  const createSubjects = useMemo(() => {
+    if (!createForm.classId) return availableSubjects;
+    return availableSubjects.filter((subject) => String(subject.classId) === String(createForm.classId));
+  }, [availableSubjects, createForm.classId]);
+
+  const teacherSubjectIds = useMemo(() => {
+    if (!isTeacher || !user?.userId) return new Set();
+    return new Set(
+      availableSubjects
+        .map((subject) => subject.subjectId)
+    );
+  }, [availableSubjects, isTeacher, user?.userId]);
+
+  const visibleSessions = useMemo(() => {
+    if (!isTeacher) return sessions;
+    return sessions.filter((session) => teacherSubjectIds.has(session.subjectId));
+  }, [isTeacher, sessions, teacherSubjectIds]);
+
   const selectedSession = useMemo(
-    () => sessions.find((s) => String(s.sessionId) === String(selectedSessionId)),
-    [selectedSessionId, sessions]
+    () => visibleSessions.find((s) => String(s.sessionId) === String(selectedSessionId)),
+    [selectedSessionId, visibleSessions]
   );
 
   const classStudents = useMemo(() => {
@@ -109,10 +143,50 @@ export default function TakeAttendancePage() {
         )
       );
       setSuccess("Attendance saved successfully");
+      window.dispatchEvent(new CustomEvent("attendance-updated"));
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to save attendance");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCreateChange = (event) => {
+    const { name, value } = event.target;
+    setCreateForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "classId" ? { subjectId: "" } : null),
+    }));
+  };
+
+  const handleCreateSession = async (event) => {
+    event.preventDefault();
+    setCreateError("");
+    setCreateSuccess("");
+
+    if (!createForm.classId || !createForm.subjectId || !createForm.sessionDate) {
+      setCreateError("Class, subject, and date are required.");
+      return;
+    }
+
+    setCreateSubmitting(true);
+    try {
+      await api.post("/attendance-sessions", {
+        classId: Number(createForm.classId),
+        subjectId: Number(createForm.subjectId),
+        sessionDate: createForm.sessionDate,
+      });
+      setCreateSuccess("Session created successfully.");
+      setCreateForm({ classId: "", subjectId: "", sessionDate: "" });
+
+      const sessionsRes = await api.get("/attendance-sessions");
+      setSessions(sessionsRes.data?.sessions || []);
+      window.dispatchEvent(new CustomEvent("attendance-session-created"));
+    } catch (err) {
+      setCreateError(err?.response?.data?.message || "Failed to create session");
+    } finally {
+      setCreateSubmitting(false);
     }
   };
 
@@ -130,8 +204,75 @@ export default function TakeAttendancePage() {
           {loading ? (
             <p className="text-sm text-stone-600">Loading sessions and students...</p>
           ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              {(isAdmin || isTeacher) && (
+                <form className="space-y-3 rounded-md border border-stone-200 bg-stone-50/70 p-4" onSubmit={handleCreateSession}>
+                  <p className="text-sm font-semibold text-stone-800">Create Attendance Session</p>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700" htmlFor="createClassId">
+                        Class
+                      </label>
+                      <select
+                        id="createClassId"
+                        name="classId"
+                        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                        onChange={handleCreateChange}
+                        value={createForm.classId}
+                      >
+                        <option value="">Select class</option>
+                        {Object.values(classesById).map((classItem) => (
+                          <option key={classItem.classId} value={classItem.classId}>
+                            {classItem.name} {classItem.section ? `- ${classItem.section}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700" htmlFor="createSubjectId">
+                        Subject
+                      </label>
+                      <select
+                        id="createSubjectId"
+                        name="subjectId"
+                        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                        onChange={handleCreateChange}
+                        value={createForm.subjectId}
+                      >
+                        <option value="">Select subject</option>
+                        {createSubjects.map((subject) => (
+                          <option key={subject.subjectId} value={subject.subjectId}>
+                            {subject.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700" htmlFor="createSessionDate">
+                        Session Date
+                      </label>
+                      <input
+                        id="createSessionDate"
+                        name="sessionDate"
+                        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                        onChange={handleCreateChange}
+                        type="date"
+                        value={createForm.sessionDate}
+                      />
+                    </div>
+                  </div>
+
+                  {createError ? <p className="text-sm text-red-600">{createError}</p> : null}
+                  {createSuccess ? <p className="text-sm text-emerald-700">{createSuccess}</p> : null}
+
+                  <Button className="bg-stone-900 hover:bg-stone-800" disabled={createSubmitting} type="submit">
+                    {createSubmitting ? "Creating..." : "Create Session"}
+                  </Button>
+                </form>
+              )}
+
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-stone-700" htmlFor="sessionId">
                     Attendance Session
@@ -143,7 +284,7 @@ export default function TakeAttendancePage() {
                     value={selectedSessionId}
                   >
                     <option value="">Select session</option>
-                    {sessions.map((session) => (
+                    {visibleSessions.map((session) => (
                       <option key={session.sessionId} value={session.sessionId}>
                         {classesById[session.classId]?.name || `Class ${session.classId}`} |{" "}
                         {subjectsById[session.subjectId]?.name || `Subject ${session.subjectId}`} |{" "}
@@ -151,6 +292,9 @@ export default function TakeAttendancePage() {
                       </option>
                     ))}
                   </select>
+                  {visibleSessions.length === 0 ? (
+                    <p className="text-xs text-amber-700">No sessions found for your subjects. Create one above.</p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-stone-700" htmlFor="attendanceDate">
@@ -166,7 +310,7 @@ export default function TakeAttendancePage() {
                 </div>
               </div>
 
-              {selectedSession ? (
+                {selectedSession ? (
                 <div className="space-y-3">
                   <p className="text-sm text-stone-600">
                     Class: <span className="font-medium">{classesById[selectedSession.classId]?.name || selectedSession.classId}</span>{" "}
@@ -209,19 +353,20 @@ export default function TakeAttendancePage() {
                     </TableBody>
                   </Table>
                 </div>
-              ) : null}
+                ) : null}
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
-              {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
+                {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
 
-              <Button
-                className="bg-stone-900 hover:bg-stone-800"
-                disabled={!selectedSession || classStudents.length === 0 || submitting}
-                type="submit"
-              >
-                {submitting ? "Saving..." : "Save Attendance"}
-              </Button>
-            </form>
+                <Button
+                  className="bg-stone-900 hover:bg-stone-800"
+                  disabled={!selectedSession || classStudents.length === 0 || submitting}
+                  type="submit"
+                >
+                  {submitting ? "Saving..." : "Save Attendance"}
+                </Button>
+              </form>
+            </div>
           )}
         </CardContent>
       </Card>

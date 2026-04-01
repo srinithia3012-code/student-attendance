@@ -12,6 +12,8 @@ export default function AddStudentPage() {
     batch: "",
     rollNumber: "",
   });
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [createNewAccount, setCreateNewAccount] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +39,9 @@ export default function AddStudentPage() {
 
         setClasses(classesRes.data?.classes || []);
         setUnmappedStudentUsers(availableStudentUsers);
+        if (availableStudentUsers.length === 0) {
+          setCreateNewAccount(true);
+        }
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load form options");
       } finally {
@@ -61,31 +66,41 @@ export default function AddStudentPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectStudent = (event) => {
+    const { value } = event.target;
+    setSelectedUserId(value);
+    const selected = unmappedStudentUsers.find((user) => String(user.userId) === String(value));
+    setForm((prev) => ({
+      ...prev,
+      name: selected?.name || "",
+    }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!form.name.trim() || !form.classId || !form.rollNumber.trim()) {
+    if (!form.classId || !form.rollNumber.trim()) {
       setError("All fields are required");
+      return;
+    }
+
+    if (!createNewAccount && !selectedUserId) {
+      setError("Select an existing student account or enable create new.");
+      return;
+    }
+
+    if (createNewAccount && !form.name.trim()) {
+      setError("Student name is required to create a new account.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const requestedName = form.name.trim().toLowerCase();
-      const matchedUsers = unmappedStudentUsers.filter(
-        (user) => user.name?.trim().toLowerCase() === requestedName
-      );
+      let finalUserId = selectedUserId ? Number(selectedUserId) : null;
 
-      let selectedUserId = null;
-      if (matchedUsers.length === 1) {
-        selectedUserId = matchedUsers[0].userId;
-      } else if (matchedUsers.length > 1) {
-        setError("Multiple student accounts have this name. Use a unique name/account.");
-        setSubmitting(false);
-        return;
-      } else {
+      if (createNewAccount) {
         const normalizedName = form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, ".");
         const generatedEmail = `${normalizedName}.${Date.now()}@student.local`;
         const generatedPassword = `Student@${form.rollNumber.trim()}`;
@@ -97,25 +112,26 @@ export default function AddStudentPage() {
           role: "student",
         });
 
-        selectedUserId = registerRes.data?.user?.userId;
-        if (!selectedUserId) {
+        finalUserId = registerRes.data?.user?.userId ?? null;
+        if (!finalUserId) {
           throw new Error("Student user creation failed");
         }
       }
 
       await api.post("/students", {
-        userId: Number(selectedUserId),
+        userId: Number(finalUserId),
         classId: Number(form.classId),
         rollNumber: form.rollNumber.trim(),
       });
       setSuccess("Student mapped successfully");
-      setUnmappedStudentUsers((prev) => prev.filter((user) => user.userId !== Number(selectedUserId)));
+      setUnmappedStudentUsers((prev) => prev.filter((user) => user.userId !== Number(finalUserId)));
       window.dispatchEvent(
         new CustomEvent("student-mapped", {
-          detail: { userId: Number(selectedUserId), name: form.name.trim() },
+          detail: { userId: Number(finalUserId), name: form.name.trim() },
         })
       );
       setForm({ name: "", classId: "", batch: "", rollNumber: "" });
+      setSelectedUserId("");
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to add student");
     } finally {
@@ -139,6 +155,51 @@ export default function AddStudentPage() {
             <p className="text-sm text-stone-600">Loading options...</p>
           ) : (
             <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+                <label className="text-sm font-medium text-stone-700">
+                  <input
+                    checked={!createNewAccount}
+                    className="mr-2"
+                    onChange={() => setCreateNewAccount(false)}
+                    type="radio"
+                  />
+                  Map existing student account
+                </label>
+                <label className="text-sm font-medium text-stone-700">
+                  <input
+                    checked={createNewAccount}
+                    className="mr-2"
+                    onChange={() => setCreateNewAccount(true)}
+                    type="radio"
+                  />
+                  Create new student account
+                </label>
+              </div>
+
+              {!createNewAccount ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-stone-700" htmlFor="existingUser">
+                    Existing Student Account
+                  </label>
+                  <select
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                    id="existingUser"
+                    onChange={handleSelectStudent}
+                    value={selectedUserId}
+                  >
+                    <option value="">Select student account</option>
+                    {unmappedStudentUsers.map((user) => (
+                      <option key={user.userId} value={user.userId}>
+                        {user.name || user.email} {user.email ? `(${user.email})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedUserId ? (
+                    <p className="text-xs text-stone-500">This will link the selected account.</p>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-stone-700" htmlFor="name">
                   Student Name
@@ -150,6 +211,7 @@ export default function AddStudentPage() {
                   onChange={handleChange}
                   placeholder="Enter full name"
                   value={form.name}
+                  readOnly={!createNewAccount}
                 />
               </div>
 

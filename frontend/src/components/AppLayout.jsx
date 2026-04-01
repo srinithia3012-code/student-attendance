@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CircleUserRound,
@@ -25,6 +25,7 @@ export default function AppLayout({ children }) {
   const user = getUser();
   const [pendingMappingCount, setPendingMappingCount] = useState(0);
   const [pendingStudentNames, setPendingStudentNames] = useState([]);
+  const [showAllPending, setShowAllPending] = useState(false);
   const previousCountRef = useRef(0);
   const initials = (user?.name || "U")
     .split(" ")
@@ -113,48 +114,59 @@ export default function AppLayout({ children }) {
     }
   };
 
+  const fetchPendingMappings = useCallback(async () => {
+    if (role !== "admin" && role !== "teacher") return;
+    try {
+      const [usersRes, studentsRes] = await Promise.all([
+        api.get("/users?page=1&limit=1000"),
+        api.get("/students"),
+      ]);
+      const users = usersRes.data?.users || [];
+      const studentRows = studentsRes.data?.students || [];
+      const mappedUserIds = new Set(studentRows.map((item) => item.userId));
+      const pending = users
+        .filter((item) => item.role === "student" && !mappedUserIds.has(item.userId))
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+      const nextCount = pending.length;
+      if (nextCount > previousCountRef.current) {
+        playNotificationSound();
+      }
+      previousCountRef.current = nextCount;
+      setPendingMappingCount(nextCount);
+      setPendingStudentNames(pending.map((item) => item.name || item.email || `Student ${item.userId}`));
+      setShowAllPending(false);
+    } catch {
+      // no-op
+    }
+  }, [role]);
+
   useEffect(() => {
     if (role !== "admin" && role !== "teacher") return;
-
-    const fetchPendingMappings = async () => {
-      try {
-        const [usersRes, studentsRes] = await Promise.all([
-          api.get("/users?page=1&limit=1000"),
-          api.get("/students"),
-        ]);
-        const users = usersRes.data?.users || [];
-        const studentRows = studentsRes.data?.students || [];
-        const mappedUserIds = new Set(studentRows.map((item) => item.userId));
-        const pending = users
-          .filter((item) => item.role === "student" && !mappedUserIds.has(item.userId))
-          .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-
-        const nextCount = pending.length;
-        if (nextCount > previousCountRef.current) {
-          playNotificationSound();
-        }
-        previousCountRef.current = nextCount;
-        setPendingMappingCount(nextCount);
-        setPendingStudentNames(pending.map((item) => item.name || item.email || `Student ${item.userId}`));
-      } catch {
-        // no-op
-      }
-    };
 
     fetchPendingMappings();
     const timer = setInterval(fetchPendingMappings, 15000);
     const onStudentMapped = () => {
       fetchPendingMappings();
     };
+    const onUserUpdated = () => {
+      fetchPendingMappings();
+    };
     window.addEventListener("student-mapped", onStudentMapped);
+    window.addEventListener("user-updated", onUserUpdated);
     return () => {
       clearInterval(timer);
       window.removeEventListener("student-mapped", onStudentMapped);
+      window.removeEventListener("user-updated", onUserUpdated);
     };
-  }, [role]);
+  }, [fetchPendingMappings, role]);
 
   const handleNotificationsClick = () => {
     navigate("/students/add");
+  };
+
+  const handleTogglePending = () => {
+    setShowAllPending((prev) => !prev);
   };
 
   return (
@@ -198,13 +210,19 @@ export default function AppLayout({ children }) {
               <div className="mx-3 rounded-md border border-amber-200 bg-amber-50 px-2 py-2">
                 <p className="mb-1 text-xs font-semibold text-amber-800">Pending Student Mapping</p>
                 <div className="space-y-1">
-                  {pendingStudentNames.slice(0, 3).map((name, index) => (
+                  {(showAllPending ? pendingStudentNames : pendingStudentNames.slice(0, 3)).map((name, index) => (
                     <p key={`${name}-${index}`} className="truncate text-xs text-amber-700">
                       {name}
                     </p>
                   ))}
                   {pendingMappingCount > 3 ? (
-                    <p className="text-xs text-amber-700">+{pendingMappingCount - 3} more</p>
+                    <button
+                      className="text-left text-xs font-medium text-amber-700 hover:text-amber-800"
+                      onClick={handleTogglePending}
+                      type="button"
+                    >
+                      {showAllPending ? "Show less" : `+${pendingMappingCount - 3} more`}
+                    </button>
                   ) : null}
                 </div>
               </div>

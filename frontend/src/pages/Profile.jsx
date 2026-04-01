@@ -20,6 +20,8 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [studentClassInfo, setStudentClassInfo] = useState({ name: "", semester: "", section: "" });
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const fileInputRef = useRef(null);
@@ -52,6 +54,22 @@ export default function Profile() {
             name: data.user.name || "",
             email: data.user.email || "",
           });
+        }
+        if (currentUser?.role === "student") {
+          const [studentsRes, classesRes] = await Promise.all([api.get("/students"), api.get("/classes")]);
+          const studentRows = studentsRes.data?.students || [];
+          const classRows = classesRes.data?.classes || [];
+          const studentRow = studentRows.find((row) => Number(row.userId) === Number(currentUser.userId));
+          if (studentRow) {
+            const classRow = classRows.find((item) => Number(item.classId) === Number(studentRow.classId));
+            if (classRow) {
+              setStudentClassInfo({
+                name: classRow.name || "",
+                semester: classRow.semester ? String(classRow.semester) : "",
+                section: classRow.section || "",
+              });
+            }
+          }
         }
       } catch (err) {
         setError(err?.response?.data?.message || "Showing local profile details");
@@ -124,27 +142,60 @@ export default function Profile() {
     persistCustomProfile(withProfilePayload({ avatarUrl: "" }));
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const nextProfile = {
       ...(profile || {}),
       name: draft.name.trim() || profile?.name || "",
       email: draft.email.trim() || profile?.email || "",
     };
-    setProfile(nextProfile);
-    persistCustomProfile(withProfilePayload({ name: nextProfile.name, email: nextProfile.email }));
+    const ageValue = extraDraft.age ? Number(extraDraft.age) : undefined;
 
-    const token = getToken();
-    if (token && currentUser) {
-      setAuth(token, {
-        ...currentUser,
-        name: nextProfile.name,
-        email: nextProfile.email,
-      });
+    setSaving(true);
+    setError("");
+    try {
+      if (currentUser?.userId) {
+        await api.put(`/users/me`, {
+          name: nextProfile.name,
+          email: nextProfile.email,
+          phoneNumber: extraDraft.phoneNumber || undefined,
+          address: extraDraft.address || undefined,
+          parentName: extraDraft.parentName || undefined,
+          education: extraDraft.education || undefined,
+          dob: extraDraft.dob || undefined,
+          age: Number.isFinite(ageValue) ? ageValue : undefined,
+        });
+        window.dispatchEvent(new CustomEvent("user-updated", { detail: { userId: currentUser.userId } }));
+      }
+
+      setProfile((prev) => ({
+        ...(prev || {}),
+        ...nextProfile,
+        phoneNumber: extraDraft.phoneNumber,
+        address: extraDraft.address,
+        parentName: extraDraft.parentName,
+        education: extraDraft.education,
+        dob: extraDraft.dob,
+        age: Number.isFinite(ageValue) ? ageValue : extraDraft.age,
+      }));
+      persistCustomProfile(withProfilePayload({ name: nextProfile.name, email: nextProfile.email }));
+
+      const token = getToken();
+      if (token && currentUser) {
+        setAuth(token, {
+          ...currentUser,
+          name: nextProfile.name,
+          email: nextProfile.email,
+        });
+      }
+
+      setSuccess("Profile updated successfully");
+      setIsEditing(false);
+      setTimeout(() => setSuccess(""), 1800);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to update profile");
+    } finally {
+      setSaving(false);
     }
-
-    setSuccess("Profile updated successfully");
-    setIsEditing(false);
-    setTimeout(() => setSuccess(""), 1800);
   };
 
   const handleCancelEdit = () => {
@@ -267,6 +318,19 @@ export default function Profile() {
             <span className="font-medium text-stone-500">Status</span>
             <span className="text-stone-900">{profile?.status ?? "-"}</span>
 
+            {isStudent && (
+              <>
+                <span className="font-medium text-stone-500">Class</span>
+                <span className="text-stone-900">
+                  {studentClassInfo.name
+                    ? `${studentClassInfo.name}${
+                        studentClassInfo.section ? ` - ${studentClassInfo.section}` : ""
+                      }${studentClassInfo.semester ? ` (Semester ${studentClassInfo.semester})` : ""}`
+                    : "Not mapped"}
+                </span>
+              </>
+            )}
+
             <span className="font-medium text-stone-500">Phone Number</span>
             {isEditing ? (
               <Input
@@ -329,7 +393,7 @@ export default function Profile() {
 
           {isEditing ? (
             <div className="flex gap-2 pt-2">
-              <Button onClick={handleSaveProfile} size="sm">
+              <Button disabled={saving} onClick={handleSaveProfile} size="sm">
                 Save
               </Button>
               <Button onClick={handleCancelEdit} size="sm" variant="outline">
