@@ -205,7 +205,7 @@ export default function TakeAttendancePage() {
             <p className="text-sm text-stone-600">Loading sessions and students...</p>
           ) : (
             <div className="space-y-4">
-              {(isAdmin || isTeacher) && (
+              {isTeacher && (
                 <form className="space-y-3 rounded-md border border-stone-200 bg-stone-50/70 p-4" onSubmit={handleCreateSession}>
                   <p className="text-sm font-semibold text-stone-800">Create Attendance Session</p>
                   <div className="grid gap-4 md:grid-cols-3">

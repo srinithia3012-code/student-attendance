@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api";
 import { getUser } from "@/lib/auth";
 
 export default function SubjectsPage() {
+  const navigate = useNavigate();
   const user = getUser();
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
@@ -198,6 +200,15 @@ export default function SubjectsPage() {
 
               {submitError ? <p className="text-sm text-red-600">{submitError}</p> : null}
               {submitSuccess ? <p className="text-sm text-emerald-700">{submitSuccess}</p> : null}
+              {isTeacher && submitSuccess ? (
+                <button
+                  className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
+                  onClick={() => navigate("/attendance/take")}
+                  type="button"
+                >
+                  Create Session
+                </button>
+              ) : null}
 
               <button
                 className="inline-flex items-center justify-center rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 disabled:opacity-60"
