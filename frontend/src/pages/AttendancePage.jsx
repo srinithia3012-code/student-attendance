@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api";
+import { formatSessionLabel } from "@/lib/sessionLabel";
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState([]);
@@ -55,7 +56,7 @@ export default function AttendancePage() {
         const sessionLabelMap = sessions.reduce((acc, session) => {
           const className = classNameById[session.classId] || `Class ${session.classId}`;
           const subjectName = subjectNameMap[session.subjectId] || `Subject ${session.subjectId}`;
-          acc[session.sessionId] = `${className} - ${subjectName} (${session.sessionDate})`;
+          acc[session.sessionId] = formatSessionLabel(session, className, subjectName);
           return acc;
         }, {});
 
@@ -77,7 +78,7 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <section>
         <h2 className="text-3xl font-bold tracking-tight text-stone-900">Attendance</h2>
-        <p className="text-stone-600">Attendance records overview. Percentage is in Attendance Progress.</p>
+        <p className="text-stone-600">Attendance records overview.</p>
       </section>
 
       <Card className="border-stone-200 bg-white/95">

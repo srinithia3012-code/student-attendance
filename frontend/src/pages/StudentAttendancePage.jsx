@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api";
 import { getUser } from "@/lib/auth";
+import { formatSessionLabel } from "@/lib/sessionLabel";
 
 export default function StudentAttendancePage() {
   const user = getUser();
@@ -47,7 +48,7 @@ export default function StudentAttendancePage() {
         const sessionLabelMap = sessions.reduce((acc, session) => {
           const className = classNameById[session.classId] || `Class ${session.classId}`;
           const subjectName = subjectNameMap[session.subjectId] || `Subject ${session.subjectId}`;
-          acc[session.sessionId] = `${className} - ${subjectName} (${session.sessionDate})`;
+          acc[session.sessionId] = formatSessionLabel(session, className, subjectName);
           return acc;
         }, {});
         setSessionLabelById(sessionLabelMap);

@@ -21,5 +21,5 @@ export function clearAuth() {
 }
 
 export function isAuthenticated() {
-  return Boolean(getToken());
+  return Boolean(getToken() && getUser());
 }

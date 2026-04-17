@@ -95,6 +95,8 @@ export const attendanceSessions = pgTable("attendance_sessions", {
   classId: integer("class_id").references(() => classes.classId).notNull(),
   subjectId: integer("subject_id").references(() => subjects.subjectId).notNull(),
   sessionDate: date("session_date").notNull(),
+  sessionStartTime: varchar("session_start_time", { length: 20 }),
+  sessionEndTime: varchar("session_end_time", { length: 20 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

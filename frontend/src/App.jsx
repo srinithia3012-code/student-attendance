@@ -2,8 +2,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./components/AppLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AttendancePage from "./pages/AttendancePage.jsx";
-import AttendanceProgressPage from "./pages/AttendanceProgressPage.jsx";
-import AttendanceScannerPage from "./pages/AttendanceScannerPage.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Login from "./pages/Login.jsx";
@@ -12,18 +10,18 @@ import ReportsPage from "./pages/ReportsPage.jsx";
 import SessionsPage from "./pages/SessionsPage.jsx";
 import Signup from "./pages/Signup.jsx";
 import StudentAttendancePage from "./pages/StudentAttendancePage.jsx";
-import StudentAttendancePercentagePage from "./pages/StudentAttendancePercentagePage.jsx";
 import StudentAttendanceRecordsPage from "./pages/StudentAttendanceRecordsPage.jsx";
 import StudentSessionsPage from "./pages/StudentSessionsPage.jsx";
 import StudentSubjectProgressPage from "./pages/StudentSubjectProgressPage.jsx";
 import StudentsPage from "./pages/StudentsPage.jsx";
-import StaffQrGeneratorPage from "./pages/StaffQrGeneratorPage.jsx";
+import StaffAttendancePage from "./pages/StaffAttendancePage.jsx";
 import SubjectsPage from "./pages/SubjectsPage.jsx";
 import TakeAttendancePage from "./pages/TakeAttendancePage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import ClassesPage from "./pages/ClassesPage.jsx";
 import AddStudentPage from "./pages/AddStudentPage.jsx";
 import AddTeacherPage from "./pages/AddTeacherPage.jsx";
+import StudentStaffAvailabilityPage from "./pages/StudentStaffAvailabilityPage.jsx";
 
 function withLayout(element, allowedRoles) {
   return (
@@ -49,14 +47,12 @@ export default function App() {
       <Route path="/subjects" element={withLayout(<SubjectsPage />, ["admin", "teacher"])} />
       <Route path="/attendance" element={withLayout(<AttendancePage />, ["admin", "teacher"])} />
       <Route path="/attendance/take" element={withLayout(<TakeAttendancePage />, ["admin", "teacher"])} />
-      <Route path="/attendance-progress" element={withLayout(<AttendanceProgressPage />, ["admin", "teacher"])} />
-      <Route path="/attendance/scanner" element={withLayout(<AttendanceScannerPage />, ["teacher"])} />
-      <Route path="/attendance/staff-qr" element={withLayout(<StaffQrGeneratorPage />, ["admin"])} />
+      <Route path="/staff-attendance" element={withLayout(<StaffAttendancePage />, ["admin", "teacher"])} />
       <Route path="/my-attendance" element={withLayout(<StudentAttendancePage />, ["student"])} />
       <Route path="/student/sessions" element={withLayout(<StudentSessionsPage />, ["student"])} />
       <Route path="/student/subject-progress" element={withLayout(<StudentSubjectProgressPage />, ["student"])} />
       <Route path="/student/attendance-records" element={withLayout(<StudentAttendanceRecordsPage />, ["student"])} />
-      <Route path="/student/attendance-percentage" element={withLayout(<StudentAttendancePercentagePage />, ["student"])} />
+      <Route path="/student/staff-availability" element={withLayout(<StudentStaffAvailabilityPage />, ["student"])} />
       <Route path="/sessions" element={withLayout(<SessionsPage />, ["admin", "teacher"])} />
       <Route path="/reports" element={withLayout(<ReportsPage />, ["admin"])} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

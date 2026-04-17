@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api";
 import { getUser } from "@/lib/auth";
+import { formatSessionLabel } from "@/lib/sessionLabel";
 
 export default function TakeAttendancePage() {
   const user = getUser();
   const isTeacher = user?.role === "teacher";
-  const isAdmin = user?.role === "admin";
   const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
   const [usersById, setUsersById] = useState({});
@@ -17,10 +17,18 @@ export default function TakeAttendancePage() {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [attendanceDate, setAttendanceDate] = useState("");
   const [statuses, setStatuses] = useState({});
-  const [createForm, setCreateForm] = useState({ classId: "", subjectId: "", sessionDate: "" });
+  const [createForm, setCreateForm] = useState({
+    classId: "",
+    subjectId: "",
+    sessionDate: "",
+    sessionStartTime: "",
+    sessionEndTime: "",
+  });
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState("");
+  const [attendanceBlockedMessage, setAttendanceBlockedMessage] = useState("");
+  const [checkingAttendanceLock, setCheckingAttendanceLock] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +115,44 @@ export default function TakeAttendancePage() {
     setStatuses(defaultStatuses);
   }, [selectedSession, classStudents]);
 
+  useEffect(() => {
+    const verifyTeacherAttendance = async () => {
+      if (!isTeacher || !selectedSession?.sessionDate || !user?.userId) {
+        setAttendanceBlockedMessage("");
+        setCheckingAttendanceLock(false);
+        return;
+      }
+
+      setCheckingAttendanceLock(true);
+      setAttendanceBlockedMessage("");
+      try {
+        const res = await api.get(`/staff-attendance?teacherId=${user.userId}&date=${selectedSession.sessionDate}`);
+        const records = res.data?.attendance || [];
+        const staffRecord = records[0];
+
+        if (staffRecord?.status === "absent") {
+          setAttendanceBlockedMessage(
+            `You are marked absent for ${selectedSession.sessionDate}, so student attendance is locked until your staff attendance is updated.`
+          );
+        }
+      } catch (err) {
+        setAttendanceBlockedMessage(err?.response?.data?.message || "Unable to verify staff attendance status");
+      } finally {
+        setCheckingAttendanceLock(false);
+      }
+    };
+
+    void verifyTeacherAttendance();
+    const onStaffAttendanceUpdated = () => {
+      void verifyTeacherAttendance();
+    };
+
+    window.addEventListener("staff-attendance-updated", onStaffAttendanceUpdated);
+    return () => {
+      window.removeEventListener("staff-attendance-updated", onStaffAttendanceUpdated);
+    };
+  }, [isTeacher, selectedSession?.sessionDate, user?.userId]);
+
   const handleStatusChange = (studentId, value) => {
     setStatuses((prev) => ({ ...prev, [studentId]: value }));
   };
@@ -122,6 +168,10 @@ export default function TakeAttendancePage() {
     }
     if (!attendanceDate) {
       setError("Please set attendance date");
+      return;
+    }
+    if (attendanceBlockedMessage) {
+      setError(attendanceBlockedMessage);
       return;
     }
     if (classStudents.length === 0) {
@@ -176,9 +226,11 @@ export default function TakeAttendancePage() {
         classId: Number(createForm.classId),
         subjectId: Number(createForm.subjectId),
         sessionDate: createForm.sessionDate,
+        sessionStartTime: createForm.sessionStartTime || null,
+        sessionEndTime: createForm.sessionEndTime || null,
       });
       setCreateSuccess("Session created successfully.");
-      setCreateForm({ classId: "", subjectId: "", sessionDate: "" });
+      setCreateForm({ classId: "", subjectId: "", sessionDate: "", sessionStartTime: "", sessionEndTime: "" });
 
       const sessionsRes = await api.get("/attendance-sessions");
       setSessions(sessionsRes.data?.sessions || []);
@@ -260,6 +312,32 @@ export default function TakeAttendancePage() {
                         value={createForm.sessionDate}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700" htmlFor="createSessionStartTime">
+                        Start Time
+                      </label>
+                      <input
+                        id="createSessionStartTime"
+                        name="sessionStartTime"
+                        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                        onChange={handleCreateChange}
+                        type="time"
+                        value={createForm.sessionStartTime}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700" htmlFor="createSessionEndTime">
+                        End Time
+                      </label>
+                      <input
+                        id="createSessionEndTime"
+                        name="sessionEndTime"
+                        className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                        onChange={handleCreateChange}
+                        type="time"
+                        value={createForm.sessionEndTime}
+                      />
+                    </div>
                   </div>
 
                   {createError ? <p className="text-sm text-red-600">{createError}</p> : null}
@@ -271,11 +349,35 @@ export default function TakeAttendancePage() {
                 </form>
               )}
 
+              {isTeacher && visibleSessions.length > 0 ? (
+                <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+                  <p className="mb-3 text-sm font-semibold text-stone-800">Your Subject Sessions</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Session Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleSessions.map((session) => (
+                        <TableRow key={session.sessionId}>
+                          <TableCell>{classesById[session.classId]?.name || `Class ${session.classId}`}</TableCell>
+                          <TableCell>{subjectsById[session.subjectId]?.name || `Subject ${session.subjectId}`}</TableCell>
+                          <TableCell>{formatSessionLabel(session, classesById[session.classId]?.name, subjectsById[session.subjectId]?.name)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : null}
+
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-stone-700" htmlFor="sessionId">
-                    Attendance Session
+                    Select Attendance Session
                   </label>
                   <select
                     id="sessionId"
@@ -283,17 +385,21 @@ export default function TakeAttendancePage() {
                     onChange={(e) => setSelectedSessionId(e.target.value)}
                     value={selectedSessionId}
                   >
-                    <option value="">Select session</option>
-                    {visibleSessions.map((session) => (
-                      <option key={session.sessionId} value={session.sessionId}>
-                        {classesById[session.classId]?.name || `Class ${session.classId}`} |{" "}
-                        {subjectsById[session.subjectId]?.name || `Subject ${session.subjectId}`} |{" "}
-                        {session.sessionDate}
-                      </option>
-                    ))}
+                      <option value="">Select session</option>
+                      {visibleSessions.map((session) => (
+                        <option key={session.sessionId} value={session.sessionId}>
+                          {formatSessionLabel(session, classesById[session.classId]?.name, subjectsById[session.subjectId]?.name)}
+                        </option>
+                      ))}
                   </select>
+                  <p className="text-xs text-stone-600">Select the session to mark attendance for, then update each student’s present/absent status.</p>
                   {visibleSessions.length === 0 ? (
                     <p className="text-xs text-amber-700">No sessions found for your subjects. Create one above.</p>
+                  ) : null}
+                  {attendanceBlockedMessage ? (
+                    <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                      {attendanceBlockedMessage}
+                    </p>
                   ) : null}
                 </div>
                 <div className="space-y-2">
@@ -360,7 +466,7 @@ export default function TakeAttendancePage() {
 
                 <Button
                   className="bg-stone-900 hover:bg-stone-800"
-                  disabled={!selectedSession || classStudents.length === 0 || submitting}
+                  disabled={!selectedSession || classStudents.length === 0 || submitting || checkingAttendanceLock || Boolean(attendanceBlockedMessage)}
                   type="submit"
                 >
                   {submitting ? "Saving..." : "Save Attendance"}

@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../db/client";
-import { students } from "../db/schema";
+import { classes, students, users } from "../db/schema";
 
 const createStudentSchema = z.object({
   userId: z.number().int(),
@@ -38,7 +38,21 @@ export async function createStudent(req: Request, res: Response) {
 
 export async function getStudents(_: Request, res: Response) {
   try {
-    const allStudents = await db.select().from(students);
+    const allStudents = await db
+      .select({
+        studentId: students.studentId,
+        userId: students.userId,
+        classId: students.classId,
+        rollNumber: students.rollNumber,
+        userName: users.name,
+        userEmail: users.email,
+        className: classes.name,
+        classSection: classes.section,
+      })
+      .from(students)
+      .leftJoin(users, eq(students.userId, users.userId))
+      .leftJoin(classes, eq(students.classId, classes.classId));
+
     return res.json({ students: allStudents });
   } catch (error) {
     return res.status(500).json({ message: "Error fetching students", error });

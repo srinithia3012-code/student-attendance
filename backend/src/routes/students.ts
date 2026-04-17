@@ -13,5 +13,5 @@ export function registerStudentRoutes(app: Express): void {
   app.get("/students", authenticate, getStudents);
   app.get("/students/:id", authenticate, getStudentById);
   app.put("/students/:id", authenticate, authorize(["admin", "teacher"]), updateStudent);
-  app.delete("/students/:id", authenticate, authorize(["admin"]), deleteStudent);
+  app.delete("/students/:id", authenticate, authorize(["admin", "teacher"]), deleteStudent);
 }

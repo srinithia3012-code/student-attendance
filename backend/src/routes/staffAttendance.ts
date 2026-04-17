@@ -4,5 +4,5 @@ import { authenticate, authorize } from "../middlewares/authMiddleware";
 
 export function registerStaffAttendanceRoutes(app: Express): void {
   app.post("/staff-attendance", authenticate, authorize(["admin", "teacher"]), createStaffAttendance);
-  app.get("/staff-attendance", authenticate, authorize(["admin", "teacher"]), getStaffAttendance);
+  app.get("/staff-attendance", authenticate, authorize(["admin", "teacher", "student"]), getStaffAttendance);
 }

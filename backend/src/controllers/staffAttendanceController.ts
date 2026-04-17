@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client";
 import { staffAttendance, users } from "../db/schema";
@@ -29,19 +29,42 @@ export async function createStaffAttendance(req: Request, res: Response) {
     if (teacher.length === 0) return res.status(404).json({ message: "Teacher not found" });
     if (teacher[0].role !== "teacher") return res.status(400).json({ message: "User is not a teacher" });
 
-    const inserted = await db
-      .insert(staffAttendance)
-      .values({
-        teacherId,
-        attendanceDate: date,
-        department: department ?? null,
-        subject: subject ?? null,
-        scanType: scanType ?? "qr",
-        status: status ?? "present",
-      })
-      .returning();
+    // Check if record exists for this teacher and date
+    const existingRecord = await db
+      .select()
+      .from(staffAttendance)
+      .where(and(eq(staffAttendance.teacherId, teacherId), eq(staffAttendance.attendanceDate, date)))
+      .limit(1);
 
-    return res.status(201).json({ message: "Staff attendance stored", attendance: inserted[0] });
+    let result;
+    if (existingRecord.length > 0) {
+      // Update existing record
+      result = await db
+        .update(staffAttendance)
+        .set({
+          department: department ?? null,
+          subject: subject ?? null,
+          scanType: scanType ?? "qr",
+          status: status ?? "present",
+        })
+        .where(and(eq(staffAttendance.teacherId, teacherId), eq(staffAttendance.attendanceDate, date)))
+        .returning();
+    } else {
+      // Insert new record
+      result = await db
+        .insert(staffAttendance)
+        .values({
+          teacherId,
+          attendanceDate: date,
+          department: department ?? null,
+          subject: subject ?? null,
+          scanType: scanType ?? "qr",
+          status: status ?? "present",
+        })
+        .returning();
+    }
+
+    return res.status(201).json({ message: "Staff attendance stored", attendance: result[0] });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error", error });
   }

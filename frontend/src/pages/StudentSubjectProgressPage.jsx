@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, XCircle, Clock } from "lucide-react";
 import { getUser } from "@/lib/auth";
 import useStudentAttendanceData from "@/hooks/useStudentAttendanceData";
 
@@ -52,21 +53,78 @@ export default function StudentSubjectProgressPage() {
           ) : subjectProgress.length === 0 ? (
             <p className="text-sm text-stone-600">No attendance records to calculate progress.</p>
           ) : (
-            <div className="space-y-3">
-              {subjectProgress.map((item) => (
-                <div key={item.subjectId} className="rounded-lg border border-stone-200 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="font-medium text-stone-900">{item.subjectName}</p>
-                    <p className="text-sm font-semibold text-stone-700">{item.percentage}%</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {subjectProgress.map((item) => {
+                const getPercentageColor = (percentage) => {
+                  if (percentage >= 80) return "from-emerald-50 to-white border-emerald-200";
+                  if (percentage >= 60) return "from-amber-50 to-white border-amber-200";
+                  return "from-rose-50 to-white border-rose-200";
+                };
+
+                const getProgressBarColor = (percentage) => {
+                  if (percentage >= 80) return "bg-emerald-600";
+                  if (percentage >= 60) return "bg-amber-600";
+                  return "bg-rose-600";
+                };
+
+                const getPercentageTextColor = (percentage) => {
+                  if (percentage >= 80) return "text-emerald-700";
+                  if (percentage >= 60) return "text-amber-700";
+                  return "text-rose-700";
+                };
+
+                return (
+                  <div
+                    key={item.subjectId}
+                    className={`rounded-2xl border bg-gradient-to-br ${getPercentageColor(item.percentage)} p-4 shadow-sm`}
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-stone-600">Subject</p>
+                          <p className="mt-1 text-lg font-bold text-stone-900">{item.subjectName}</p>
+                        </div>
+                        <div className={`rounded-xl px-3 py-2 text-center ${getPercentageTextColor(item.percentage)} font-bold text-xl`}>
+                          {item.percentage}%
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="h-3 w-full overflow-hidden rounded-full bg-stone-200">
+                          <div
+                            className={`h-full rounded-full transition-all ${getProgressBarColor(item.percentage)}`}
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 rounded-lg bg-white/70 p-3">
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <span className="text-lg font-bold text-stone-900">{item.present}</span>
+                          </div>
+                          <p className="text-xs text-stone-600">Present</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <XCircle className="h-4 w-4 text-rose-600" />
+                            <span className="text-lg font-bold text-stone-900">{item.absent}</span>
+                          </div>
+                          <p className="text-xs text-stone-600">Absent</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Clock className="h-4 w-4 text-stone-600" />
+                            <span className="text-lg font-bold text-stone-900">{item.total}</span>
+                          </div>
+                          <p className="text-xs text-stone-600">Total</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
-                    <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${item.percentage}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs text-stone-600">
-                    Present: {item.present} | Absent: {item.absent} | Total: {item.total}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
