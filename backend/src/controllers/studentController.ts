@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../db/client";
-import { classes, students, users } from "../db/schema";
+import { attendance, classes, students, users } from "../db/schema";
 
 const createStudentSchema = z.object({
   userId: z.number().int(),
@@ -95,11 +95,15 @@ export async function deleteStudent(req: Request, res: Response) {
     const studentId = Number(req.params.id);
     if (Number.isNaN(studentId)) return res.status(400).json({ message: "Invalid student id" });
 
+    // First, delete all attendance records for this student
+    await db.delete(attendance).where(eq(attendance.studentId, studentId));
+
     const result = await db.delete(students).where(eq(students.studentId, studentId));
     if (result.rowCount === 0) return res.status(404).json({ message: "Student not found" });
 
     return res.json({ message: "Student deleted successfully" });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ message: "Internal server error", error });
   }
 }
