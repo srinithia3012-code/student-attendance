@@ -106,6 +106,10 @@ Tip:
 ```bash
 cp .env.example .env
 ```
+If you are on Windows PowerShell, use:
+```powershell
+Copy-Item .env.example .env
+```
 
 ## 3. Frontend Setup
 
@@ -159,6 +163,11 @@ cp .env.example .env
 
 - `ERR_CONNECTION_REFUSED`
   - Backend not running or wrong `VITE_API_URL`.
+
+- `getaddrinfo ENOTFOUND` on `npm run push`
+  - `DATABASE_URL` points to a host that cannot be resolved or no longer exists.
+  - Recreate `backend/.env` from `backend/.env.example`, then paste the current PostgreSQL URL from your database provider.
+  - Make sure the command is `npm run push`, not `nmp drizzle-kit push`.
 
 - Migration/table errors
   - Run:
